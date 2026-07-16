@@ -2,14 +2,15 @@
     "name": "@hydrooj/scoreboard-xcpcio",
     "description": "Community-enhanced Hydro XCPCIO scoreboard plugin",
     "license": "AGPL-3.0-or-later",
-    "version": "0.1.0-better.2",
+    "version": "0.1.0-better.4",
     "main": "index.ts",
     "repository": "https://github.com/LMTINSUZHOU/Hydro-XCPCIO-ScoreBoard-Batter.git",
     "scripts": {
-        "postinstall": "node -r @hydrooj/register install.ts"
+        "postinstall": "node install.js"
     },
     "dependencies": {
-        "@xcpcio/board-app": "^0.85.3"
+        "@xcpcio/board-app": "^0.85.3",
+        "lru-cache": "^11.5.1"
     },
     "devDependencies": {
         "@xcpcio/types": "^0.85.3"

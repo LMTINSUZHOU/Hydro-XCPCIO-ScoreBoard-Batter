@@ -1,8 +1,9 @@
-import fs from 'fs';
-import path from 'path';
+const fs = require('fs');
+const path = require('path');
 
 const dist = path.join(path.dirname(require.resolve('@xcpcio/board-app/package.json')), 'dist');
 const target = path.join(__dirname, 'public');
+
 if (fs.existsSync(target)) {
     fs.rmSync(target, { recursive: true });
 }
