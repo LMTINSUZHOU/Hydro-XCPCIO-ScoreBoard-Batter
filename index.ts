@@ -1,11 +1,9 @@
 import path from 'path';
 import { LRUCache } from 'lru-cache';
 import {
-    avatar, ContestJournalEntry, ContestModel, Context, fs, getAlphabeticId, Logger, ObjectId,
-    PERM, RecordDoc, Schema, STATUS, superagent, Tdoc, Types, UserModel,
+    avatar, ContestJournalEntry, ContestModel, Context, fs, getAlphabeticId, ObjectId,
+    PERM, RecordDoc, Schema, STATUS, Tdoc, Types, UserModel,
 } from 'hydrooj';
-
-const logger = new Logger('scoreboard-xcpcio');
 
 const file = fs.readFileSync(path.join(__dirname, 'public/assets/board.html'), 'utf8');
 const indexJs = file.match(/index-([\w-]+)\.js"/)?.[1];
@@ -45,15 +43,28 @@ const statusPrivate = {
 
 type MedalCounts = Partial<Record<'gold' | 'silver' | 'bronze', number>>;
 
-function getMedalConfig(preset: 'ICPC' | 'CCPC' = 'ICPC', medals: MedalCounts = {}) {
+function normalizeMedalCount(value: unknown, fallback = 0) {
+    const count = Number(value);
+    return Number.isFinite(count) ? Math.max(0, Math.trunc(count)) : fallback;
+}
+
+function getMedalConfig(medals: MedalCounts = {}) {
     const counts = {
-        gold: Math.max(0, Math.trunc(Number(medals.gold) || 0)),
-        silver: Math.max(0, Math.trunc(Number(medals.silver) || 0)),
-        bronze: Math.max(0, Math.trunc(Number(medals.bronze) || 0)),
+        gold: normalizeMedalCount(medals.gold),
+        silver: normalizeMedalCount(medals.silver),
+        bronze: normalizeMedalCount(medals.bronze),
     };
     return Object.values(counts).some((count) => count > 0)
         ? { official: counts }
-        : preset.toLowerCase();
+        : 'icpc';
+}
+
+interface ScoreboardOptions {
+    badge?: boolean;
+    banner?: string | false;
+    groups?: Array<{ name: string }>;
+    medals?: MedalCounts;
+    override?: Record<string, unknown>;
 }
 
 function submissionBase(tdoc: Tdoc, rdoc: RecordDoc | ContestJournalEntry, uid?: number) {
@@ -108,22 +119,14 @@ async function loadContestState(tdoc: Tdoc, realtime: boolean) {
 
 export const name = 'scoreboard-xcpcio';
 
-const PublishConfig = Schema.object({
-    domainId: Schema.string().required(),
-    contestId: Schema.string().required(),
-    publishToken: Schema.string().required(),
-    publishPath: Schema.string().required(),
-    publishEndpoint: Schema.string().default('https://scoreboard.hydrooj.com/_publish'),
-    preset: Schema.union(['ICPC', 'CCPC']).default('ICPC'),
-    banner: Schema.string().default(''),
-    badge: Schema.boolean().default(false),
-});
 export const Config = Schema.object({
     cacheTTL: Schema.number().default(0).description('Cache TTL in milliseconds'),
     cacheSize: Schema.number().default(100).description('Cache size'),
     asDefault: Schema.boolean().default(false).description('As default scoreboard'),
+    gold: Schema.number().step(1).min(0).default(0).description('默认金牌数量'),
+    silver: Schema.number().step(1).min(0).default(0).description('默认银牌数量'),
+    bronze: Schema.number().step(1).min(0).default(0).description('默认铜牌数量'),
     override: Schema.any().default({}).description('Scoreboard contest override'),
-    publish: Schema.array(PublishConfig).role('table').description('Scoreboard publish config'),
 }).description('XCPCIO Scoreboard Config');
 
 export async function apply(ctx: Context, config: ReturnType<typeof Config>) {
@@ -169,11 +172,11 @@ export async function apply(ctx: Context, config: ReturnType<typeof Config>) {
         });
     }
 
-    const getJson = async (tdoc, realtime: boolean, cfg: Partial<ReturnType<typeof PublishConfig>>) => {
+    const getJson = async (tdoc, realtime: boolean, cfg: ScoreboardOptions) => {
         const isLocked = ContestModel.isLocked(tdoc);
         const cacheKey = `${tdoc.docId.toHexString()}/${(isLocked && realtime) ? 'realtime' : 'public'}`;
         const state = lru.get(cacheKey) || await loadContestState(tdoc, realtime);
-        if (cfg.cacheTTL) lru.set(cacheKey, state);
+        if (config.cacheTTL) lru.set(cacheKey, state);
         const relatedGroups = state.teams.flatMap((i) => i.group);
         return {
             contest: {
@@ -196,7 +199,7 @@ export async function apply(ctx: Context, config: ReturnType<typeof Config>) {
                     incorrect: true,
                     pending: true,
                 },
-                medal: getMedalConfig(cfg.preset, cfg.medals),
+                medal: getMedalConfig(cfg.medals),
                 balloon_color: tdoc.balloon
                     ? tdoc.pids.filter((i) => tdoc.balloon[i]).map((i) => ({
                         color: '#000',
@@ -204,7 +207,7 @@ export async function apply(ctx: Context, config: ReturnType<typeof Config>) {
                     }))
                     : [],
                 logo: {
-                    preset: cfg.preset || 'ICPC',
+                    preset: 'ICPC',
                 },
                 ...(cfg.banner ? { banner: { url: cfg.banner } } : {}),
                 options: {
@@ -216,31 +219,6 @@ export async function apply(ctx: Context, config: ReturnType<typeof Config>) {
         };
     };
 
-    if (config.publish?.length && process.env.NODE_APP_INSTANCE === '0' && !process.env.HYDRO_CLI) {
-        const done = [];
-        const unlocked = [];
-        logger.debug('Will publish scoreboards', config.publish);
-        ctx.effect(() => ctx.setInterval(() => {
-            Promise.allSettled(config.publish.map(async (i) => {
-                const key = `${i.domainId}/${i.contestId}`;
-                if (unlocked.includes(key)) return;
-                const tdoc = await ContestModel.get(i.domainId, new ObjectId(i.contestId));
-                if (ContestModel.isDone(tdoc) && ContestModel.isLocked(tdoc) && done.includes(key)) return;
-                if (ContestModel.isDone(tdoc) && !ContestModel.isLocked(tdoc)) unlocked.push(key);
-                if (ContestModel.isDone(tdoc)) done.push(key);
-                const groups = await UserModel.listGroup(i.domainId);
-                const json = await getJson(tdoc, false, { ...i, groups });
-                logger.info(`Publishing scoreboard ${i.domainId}/${i.contestId} to ${i.publishEndpoint}`);
-                const res = await superagent.post(i.publishEndpoint).send({
-                    path: i.publishPath,
-                    token: i.publishToken,
-                    json,
-                });
-                logger.info(`Published scoreboard ${i.domainId}/${i.contestId} to ${i.publishEndpoint}`, res.body);
-            })).catch(console.error);
-        }, 30000));
-    }
-
     ctx.inject(['scoreboard'], ({ scoreboard }) => {
         scoreboard.addView('xcpcio', 'XCPCIO', {
             tdoc: 'tdoc',
@@ -250,22 +228,31 @@ export async function apply(ctx: Context, config: ReturnType<typeof Config>) {
             badge: Types.Boolean,
             banner: [...Types.String, true],
             gold: Schema.transform(Schema.union([Schema.string(), Schema.number().step(1).min(0)]), (v) => +v)
-                .default(0).description('金牌数量'),
+                .description('金牌数量（覆盖后台配置）'),
             silver: Schema.transform(Schema.union([Schema.string(), Schema.number().step(1).min(0)]), (v) => +v)
-                .default(0).description('银牌数量'),
+                .description('银牌数量（覆盖后台配置）'),
             bronze: Schema.transform(Schema.union([Schema.string(), Schema.number().step(1).min(0)]), (v) => +v)
-                .default(0).description('铜牌数量'),
+                .description('铜牌数量（覆盖后台配置）'),
         }, {
             async display({
                 tdoc, groups, json, realtime, gold, silver, bronze, badge = true, banner = false,
             }) {
                 if (realtime && !this.user.own(tdoc)) this.checkPerm(PERM.PERM_VIEW_CONTEST_HIDDEN_SCOREBOARD);
+                const medals = {
+                    gold: normalizeMedalCount(gold, config.gold),
+                    silver: normalizeMedalCount(silver, config.silver),
+                    bronze: normalizeMedalCount(bronze, config.bronze),
+                };
                 if (json || this.request.json) {
-                    this.response.body = await getJson(tdoc, realtime, { badge, banner, groups, medals: { gold, silver, bronze } });
+                    this.response.body = await getJson(tdoc, realtime, {
+                        badge, banner, groups, medals, override: config.override,
+                    });
                 } else {
                     this.response.template = 'xcpcio_board.html';
                     let query = '';
-                    if (gold || silver || bronze) query = `&gold=${gold}&silver=${silver}&bronze=${bronze}`;
+                    if (medals.gold || medals.silver || medals.bronze) {
+                        query = `&gold=${medals.gold}&silver=${medals.silver}&bronze=${medals.bronze}`;
+                    }
                     if (badge) query += '&badge=true';
                     if (banner) query += '&banner=true';
                     if (realtime) query += '&realtime=true';

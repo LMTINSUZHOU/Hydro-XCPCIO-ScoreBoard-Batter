@@ -6,9 +6,11 @@
 
 ## 改进内容
 
-- 支持通过 URL 参数自定义正式队伍的金、银、铜牌数量。
+- 支持在 Hydro 插件后台配置中设置正式队伍的默认金、银、铜牌数量。
+- 支持通过 URL 参数临时覆盖后台奖牌配置。
 - Team 列显示 `昵称 (账号)`；没有昵称或昵称与账号相同时仅显示账号。
 - 使用 XCPCIO Board 展示 Hydro 的 ICPC/CCPC 比赛榜单。
+- 移除外榜推送配置、令牌及定时推送任务。
 
 奖牌数量示例：
 
@@ -16,7 +18,7 @@
 /d/<domainId>/contest/<contestId>/scoreboard/xcpcio?gold=3&silver=5&bronze=7&group=official
 ```
 
-其中 `gold`、`silver`、`bronze` 分别表示金牌、银牌和铜牌数量。奖牌配置作用于正式队伍，因此应选择 `official` 分组。
+在 Hydro 的插件配置中设置 `gold`、`silver`、`bronze`，即可作为所有 XCPCIO 榜单的默认奖牌数量。URL 中的同名参数会覆盖本次访问的后台配置。奖牌配置作用于正式队伍，因此应选择 `official` 分组。
 
 ## 本地开发
 
