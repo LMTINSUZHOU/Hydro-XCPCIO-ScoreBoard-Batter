@@ -2,7 +2,7 @@
     "name": "@hydrooj/scoreboard-xcpcio",
     "description": "Community-enhanced Hydro XCPCIO scoreboard plugin",
     "license": "AGPL-3.0-or-later",
-    "version": "0.1.0-better.4",
+    "version": "0.1.0-better.5",
     "main": "index.ts",
     "repository": "https://github.com/LMTINSUZHOU/Hydro-XCPCIO-ScoreBoard-Batter.git",
     "scripts": {

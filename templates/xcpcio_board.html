@@ -22,6 +22,10 @@
     }, 500);
 </script>
 <style>
+    #app {
+        --xcpcio-rank-avatar-size: 2rem;
+        --xcpcio-card-avatar-size: 3rem;
+    }
     #app .nav, .omnibar-toggle, #app>main>footer>div>a, #app>main>footer>div>p { display: none; }
     #app footer { display: none; }
     .nav__item .icon img { display: inherit; }
@@ -32,13 +36,102 @@
     #app table.standings {
         display: block;
         width: 100%;
-        max-width: calc(100vw - 2rem);
+        max-width: 100%;
         overflow-x: auto;
         overscroll-behavior-inline: contain;
         -webkit-overflow-scrolling: touch;
         scrollbar-width: thin;
     }
-    @media (max-width: 640px) {
+    #app [class~="w-[92%]"]:has(table.standings) > div:has(table.standings),
+    #app [class~="w-[92%]"]:has(table.standings) > div:has(table.standings) div:has(table.standings) {
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+    }
+    #app [fixed][z-1997] > .w-200 {
+        box-sizing: border-box;
+        width: min(50rem, calc(100vw - 2rem)) !important;
+        max-width: calc(100vw - 2rem);
+    }
+    #app img[alt="badge"],
+    #app img[alt="team badge"],
+    #app img[alt="org logo"] {
+        aspect-ratio: 1;
+        object-position: center;
+        flex: 0 0 auto;
+    }
+    #app img[alt="badge"],
+    #app img[alt="org logo"] {
+        object-fit: contain;
+    }
+    #app img[alt="team badge"] {
+        width: var(--xcpcio-card-avatar-size) !important;
+        height: var(--xcpcio-card-avatar-size) !important;
+        min-width: var(--xcpcio-card-avatar-size);
+        min-height: var(--xcpcio-card-avatar-size);
+        max-width: var(--xcpcio-card-avatar-size);
+        max-height: var(--xcpcio-card-avatar-size);
+        border-radius: 50%;
+        object-fit: cover;
+    }
+    #app table.standings td.stnd.relative:has(> div[items-center][justify-center][cursor-pointer]) > div.absolute {
+        box-sizing: border-box;
+        width: 2.5rem;
+        padding-inline: 0.25rem !important;
+        justify-content: center;
+    }
+    #app table.standings td.stnd.relative:has(> div[items-center][justify-center][cursor-pointer]) > div.absolute > img[alt="badge"] {
+        width: var(--xcpcio-rank-avatar-size) !important;
+        height: var(--xcpcio-rank-avatar-size) !important;
+        min-width: var(--xcpcio-rank-avatar-size);
+        min-height: var(--xcpcio-rank-avatar-size);
+        max-width: var(--xcpcio-rank-avatar-size);
+        max-height: var(--xcpcio-rank-avatar-size);
+        border-radius: 50%;
+        object-fit: cover;
+    }
+    @media (max-width: 1279px) {
+        #app [class~="sm:w-[1280px]"],
+        #app [class~="sm:w-[1260px]"] {
+            width: 100% !important;
+            max-width: 100vw;
+        }
+    }
+    @media (max-width: 1023px), (max-height: 600px) {
+        #app [fixed][z-1997] {
+            inset: 0 !important;
+            box-sizing: border-box;
+            width: 100% !important;
+            height: 100dvh !important;
+            min-height: 100dvh;
+            margin: 0 !important;
+            padding-block: max(1rem, env(safe-area-inset-top, 0px)) max(1rem, env(safe-area-inset-bottom, 0px));
+            overflow-x: hidden !important;
+            overflow-y: auto !important;
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
+        }
+        #app [fixed][z-1997] > [z-1999] {
+            box-sizing: border-box;
+            width: min(50rem, calc(100vw - 2rem)) !important;
+            max-width: calc(100vw - 2rem);
+            margin-inline: auto;
+            padding: 0 !important;
+        }
+        #app [fixed][z-1997] > [z-1999] > .relative.bg-white {
+            box-sizing: border-box;
+            width: 100%;
+            padding: 1rem;
+            border-radius: 0.5rem;
+        }
+        #app [fixed][z-1997] > [z-1999] > .relative.bg-white > div:first-child > button {
+            min-width: 2.75rem;
+            min-height: 2.75rem;
+            justify-content: center;
+            touch-action: manipulation;
+        }
+    }
+    @media (max-width: 1023px) {
         #app div.title {
             padding-inline: 1rem;
             font-size: 1.5rem;
@@ -65,14 +158,53 @@
             overflow-x: auto;
             overscroll-behavior-inline: contain;
             scrollbar-width: none;
+            gap: 0.5rem;
+            margin-right: 0 !important;
+            touch-action: pan-x;
         }
         #app [font-mono][flex] > div:has(> .second-level-menu-item)::-webkit-scrollbar {
             display: none;
         }
         #app .second-level-menu-item {
             flex: 0 0 auto;
-            min-height: 2rem;
-            padding: 0.375rem 0.625rem !important;
+            box-sizing: border-box !important;
+            height: auto;
+            min-width: 2.75rem;
+            min-height: 2.75rem;
+            margin: 0 !important;
+            padding: 0.5rem !important;
+            white-space: nowrap;
+            touch-action: manipulation;
+        }
+        #app .w-200 [ml-4] {
+            margin-left: 0 !important;
+        }
+        #app .w-200 [grid-cols-8] {
+            grid-template-columns: minmax(0, 1fr) minmax(7rem, 1fr) !important;
+            gap: 0.75rem;
+        }
+        #app .w-200 [grid-cols-6] {
+            grid-template-columns: minmax(0, 1fr) !important;
+            gap: 0.5rem !important;
+        }
+        #app .w-200 [grid-cols-6] > [col-span-5],
+        #app .w-200 [grid-cols-6] > [col-span-6] {
+            grid-column: 1 / -1 !important;
+        }
+        #app .w-200 .ui.selection.dropdown {
+            width: 100%;
+            min-width: 0;
+            min-height: 2.75rem;
+        }
+        #app .w-200 input:not([type="checkbox"]),
+        #app .w-200 button {
+            box-sizing: border-box;
+            min-height: 2.75rem;
+            touch-action: manipulation;
+        }
+        #app .w-200 input:not([type="checkbox"]) {
+            min-width: 0;
+            font-size: 1rem;
         }
         #app table.standings tr:first-child > th:nth-child(1),
         #app table.standings tr > td.stnd:nth-child(1) {
